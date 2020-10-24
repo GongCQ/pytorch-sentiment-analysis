@@ -30,10 +30,10 @@ torch.backends.cudnn.deterministic = True
 # %%
 BATCH_SIZE = 64 # 128
 bert_model_folder = os.path.join('bert_model', 'pytorch_pretrained_bert', 'bert-base-chinese')
-data_set_path = os.path.join('data', 'fruit')
-train_max_num = 0
-test_max_num = 0
-valid_max_num = 0
+data_set_path = os.path.join('data', 'summary')
+train_max_num = 2000
+test_max_num = 500
+valid_max_num = 500
 
 # The transformer has already been trained with a specific vocabulary, which means we need to train with the exact same vocabulary and also tokenize our data in the same way that the transformer did when it was initially trained.
 # 
@@ -49,6 +49,8 @@ from transformers import BertTokenizer, BertModel
 bert = BertModel.from_pretrained(bert_model_folder)
 
 print('success to load bert tokenizer and model.')
+
+max_input_length = tokenizer.max_model_input_sizes['bert-base-uncased']
 
 # The `tokenizer` has a `vocab` attribute which contains the actual vocabulary we will be using. We can check how many tokens are in it by checking its length.
 
@@ -110,7 +112,6 @@ print(init_token_idx, eos_token_idx, pad_token_idx, unk_token_idx)
 # Another thing we need to handle is that the model was trained on sequences with a defined maximum length - it does not know how to handle sequences longer than it has been trained on. We can get the maximum length of these input sizes by checking the `max_model_input_sizes` for the version of the transformer we want to use. In this case, it is 512 tokens.
 
 # %%
-max_input_length = tokenizer.max_model_input_sizes['bert-base-uncased']
 
 print(max_input_length)
 

@@ -22,6 +22,8 @@ def get_examples(path, tokenizer, max_num=0):
     pos_file = open(pos_path, encoding='utf-8')
     for line in pos_file:
         line = line.strip()
+        if len(line) > 500:
+            line = line[ : 500]
         if len(line) > 1:
             example = Example(tokenizer.encode(line), 'pos')
             # example.text = tokenizer.encode(line)
@@ -32,6 +34,8 @@ def get_examples(path, tokenizer, max_num=0):
     neg_file = open(neg_path, encoding='utf-8')
     for line in neg_file:
         line = line.strip()
+        if len(line) > 500:
+            line = line[ : 500]
         if len(line) > 1:
             example = Example(tokenizer.encode(line), 'neg')
             # example.text = tokenizer.encode(line)
