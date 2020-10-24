@@ -19,6 +19,7 @@ import torch
 import random
 import numpy as np
 
+print('%s begin run.' % dt.datetime.now())
 SEED = 1234
 
 random.seed(SEED)
@@ -26,7 +27,7 @@ np.random.seed(SEED)
 torch.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
 
-bert_model_folder = os.path.join('bert_model', 'pytorch_pretrained_bert', 'bert-base-uncased')
+bert_model_folder = os.path.join('bert_model', 'pytorch_pretrained_bert', 'bert-base-chinese')
 
 # The transformer has already been trained with a specific vocabulary, which means we need to train with the exact same vocabulary and also tokenize our data in the same way that the transformer did when it was initially trained.
 # 
@@ -140,10 +141,17 @@ LABEL = data.LabelField(dtype = torch.float)
 
 # %%
 from torchtext import datasets
-
-train_data, test_data = datasets.IMDB.splits(TEXT, LABEL)
-
-train_data, valid_data = train_data.split(random_state = random.seed(SEED))
+import custom_data_set
+#
+# train_data, test_data = datasets.IMDB.splits(TEXT, LABEL)
+#
+# train_data, valid_data = train_data.split(random_state = random.seed(SEED))
+train_data = custom_data_set.get_data_set(os.path.join('data', 'fruit', 'train'), tokenizer=tokenizer,
+                                          text_field=TEXT, label_field=LABEL)
+test_data = custom_data_set.get_data_set(os.path.join('data', 'fruit', 'test'), tokenizer=tokenizer,
+                                          text_field=TEXT, label_field=LABEL)
+valid_data = custom_data_set.get_data_set(os.path.join('data', 'fruit', 'valid'), tokenizer=tokenizer,
+                                          text_field=TEXT, label_field=LABEL)
 
 
 # %%
@@ -419,7 +427,7 @@ N_EPOCHS = 5
 
 best_valid_loss = float('inf')
 
-print('begin train.')
+print('%s begin train.' % dt.datetime.now())
 for epoch in range(N_EPOCHS):
     
     start_time = time.time()
