@@ -27,7 +27,13 @@ np.random.seed(SEED)
 torch.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
 
+# %%
+BATCH_SIZE = 64 # 128
 bert_model_folder = os.path.join('bert_model', 'pytorch_pretrained_bert', 'bert-base-chinese')
+data_set_path = os.path.join('data', 'fruit')
+train_max_num = 0
+test_max_num = 0
+valid_max_num = 0
 
 # The transformer has already been trained with a specific vocabulary, which means we need to train with the exact same vocabulary and also tokenize our data in the same way that the transformer did when it was initially trained.
 # 
@@ -146,12 +152,12 @@ import custom_data_set
 # train_data, test_data = datasets.IMDB.splits(TEXT, LABEL)
 #
 # train_data, valid_data = train_data.split(random_state = random.seed(SEED))
-train_data = custom_data_set.get_data_set(os.path.join('data', 'fruit', 'train'), tokenizer=tokenizer,
-                                          text_field=TEXT, label_field=LABEL)
-test_data = custom_data_set.get_data_set(os.path.join('data', 'fruit', 'test'), tokenizer=tokenizer,
-                                          text_field=TEXT, label_field=LABEL)
-valid_data = custom_data_set.get_data_set(os.path.join('data', 'fruit', 'valid'), tokenizer=tokenizer,
-                                          text_field=TEXT, label_field=LABEL)
+train_data = custom_data_set.get_data_set(os.path.join(data_set_path, 'train'), tokenizer=tokenizer,
+                                          text_field=TEXT, label_field=LABEL, max_num=train_max_num)
+test_data = custom_data_set.get_data_set(os.path.join(data_set_path, 'test'), tokenizer=tokenizer,
+                                          text_field=TEXT, label_field=LABEL, max_num=test_max_num)
+valid_data = custom_data_set.get_data_set(os.path.join(data_set_path, 'valid'), tokenizer=tokenizer,
+                                          text_field=TEXT, label_field=LABEL, max_num=valid_max_num)
 
 
 # %%
@@ -186,8 +192,6 @@ print(LABEL.vocab.stoi)
 
 # As before, we create the iterators. Ideally we want to use the largest batch size that we can as I've found this gives the best results for transformers.
 
-# %%
-BATCH_SIZE = 64 # 128
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -195,7 +199,6 @@ train_iterator, valid_iterator, test_iterator = data.BucketIterator.splits(
     (train_data, valid_data, test_data), 
     batch_size = BATCH_SIZE, 
     device = device)
-
 
 # ## Build the Model
 # 
