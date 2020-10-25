@@ -29,8 +29,10 @@ torch.backends.cudnn.deterministic = True
 
 # %%
 BATCH_SIZE = 64 # 128
-bert_model_folder = os.path.join('bert_model', 'pytorch_pretrained_bert', 'bert-base-chinese')
+bert_model_name = 'bert-base-chinese'
+bert_model_folder = os.path.join('bert_model', 'pytorch_pretrained_bert', bert_model_name)
 data_set_path = os.path.join('data', 'summary')
+INCLUDE_NEUTUAL = True
 train_max_num = 2000
 test_max_num = 500
 valid_max_num = 500
@@ -50,7 +52,7 @@ bert = BertModel.from_pretrained(bert_model_folder)
 
 print('success to load bert tokenizer and model.')
 
-max_input_length = tokenizer.max_model_input_sizes['bert-base-uncased']
+max_input_length = tokenizer.max_model_input_sizes[bert_model_name]
 
 # The `tokenizer` has a `vocab` attribute which contains the actual vocabulary we will be using. We can check how many tokens are in it by checking its length.
 
@@ -153,12 +155,18 @@ import custom_data_set
 # train_data, test_data = datasets.IMDB.splits(TEXT, LABEL)
 #
 # train_data, valid_data = train_data.split(random_state = random.seed(SEED))
-train_data = custom_data_set.get_data_set(os.path.join(data_set_path, 'train'), tokenizer=tokenizer,
-                                          text_field=TEXT, label_field=LABEL, max_num=train_max_num)
-test_data = custom_data_set.get_data_set(os.path.join(data_set_path, 'test'), tokenizer=tokenizer,
-                                          text_field=TEXT, label_field=LABEL, max_num=test_max_num)
-valid_data = custom_data_set.get_data_set(os.path.join(data_set_path, 'valid'), tokenizer=tokenizer,
-                                          text_field=TEXT, label_field=LABEL, max_num=valid_max_num)
+train_data = custom_data_set.get_data_set(os.path.join(data_set_path, 'train'),
+                                          tokenizer=tokenizer, max_len=max_input_length,
+                                          text_field=TEXT, label_field=LABEL, max_num=train_max_num, 
+                                          include_neutual=INCLUDE_NEUTUAL)
+test_data = custom_data_set.get_data_set(os.path.join(data_set_path, 'test'),
+                                         tokenizer=tokenizer, max_len=max_input_length,
+                                         text_field=TEXT, label_field=LABEL, max_num=test_max_num,
+                                         include_neutual=INCLUDE_NEUTUAL)
+valid_data = custom_data_set.get_data_set(os.path.join(data_set_path, 'valid'),
+                                          tokenizer=tokenizer, max_len=max_input_length,
+                                          text_field=TEXT, label_field=LABEL, max_num=valid_max_num, 
+                                          include_neutual=INCLUDE_NEUTUAL)
 
 
 # %%
@@ -350,9 +358,13 @@ def binary_accuracy(preds, y):
     """
 
     #round predictions to the closest integer
-    rounded_preds = torch.round(torch.sigmoid(preds))
-    correct = (rounded_preds == y).float() #convert into float for division 
+    if not INCLUDE_NEUTUAL:
+        rounded_preds = torch.round(torch.sigmoid(preds))
+    else:
+        rounded_preds = torch.round(2 * torch.sigmoid(preds))
+    correct = (rounded_preds == y).float()
     acc = correct.sum() / len(correct)
+
     return acc
 
 
@@ -370,7 +382,7 @@ def train(model, iterator, optimizer, criterion):
         
         predictions = model(batch.text).squeeze(1)
         
-        loss = criterion(predictions, batch.label)
+        loss = criterion(predictions, batch.label/(2 if INCLUDE_NEUTUAL else 1))
         
         acc = binary_accuracy(predictions, batch.label)
         acc_value = float(acc)
