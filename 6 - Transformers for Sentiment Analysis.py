@@ -33,6 +33,8 @@ bert_model_name = 'bert-base-chinese'
 bert_model_folder = os.path.join('bert_model', 'pytorch_pretrained_bert', bert_model_name)
 data_set_path = os.path.join('data', 'summary')
 INCLUDE_NEUTUAL = True
+BERT_LR = 0.00005
+FC_LR = 0.005
 train_max_num = 120000
 test_max_num = 12000
 valid_max_num = 12000
@@ -337,7 +339,7 @@ for name, param in model.named_parameters():
 # %%
 import torch.optim as optim
 
-optimizer = optim.Adam(model.parameters())
+optimizer = optim.Adam(params=[{'params':bert.parameters(), 'lr': BERT_LR}], lr=FC_LR)
 
 
 # %%
@@ -391,14 +393,11 @@ def train(model, iterator, optimizer, criterion):
         
         loss.backward()        
         optimizer.step()
-
-        acc_after = binary_accuracy(predictions, batch.label)
-        acc_after_value = float(acc_after)
         
         epoch_loss += loss.item()
         epoch_acc += acc.item()
 
-        print('%s  batch %s, loss %s, acc %s, acc_after %s' % (dt.datetime.now(), b, loss.item(), acc_value, acc_after_value))
+        print('%s  batch %s, loss %s, acc %s' % (dt.datetime.now(), b, loss.item(), acc_value))
         b += 1
         
     return epoch_loss / len(iterator), epoch_acc / len(iterator)
@@ -464,7 +463,7 @@ for epoch in range(N_EPOCHS):
     print(f'Epoch: {epoch+1:02} | Epoch Time: {epoch_mins}m {epoch_secs}s')
     print(f'\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc*100:.2f}%')
     print(f'\t Val. Loss: {valid_loss:.3f} |  Val. Acc: {valid_acc*100:.2f}%')
-    model_file_name = 'model%s_neu=%s_bat=%s_epo=%s_acc=%s.pkl' % (MODEL_STAMP, INCLUDE_NEUTUAL, BATCH_SIZE, epoch, round(valid_acc, 4))
+    model_file_name = 'model%s_neu=%s_bat=%s_blr=%s_flr=%s_epo=%s_acc=%s.pkl' % (MODEL_STAMP, INCLUDE_NEUTUAL, BATCH_SIZE, BERT_LR, FC_LR, epoch, round(valid_acc, 4))
     torch.save(model, os.path.join(model_save_path,model_file_name))
 
 
