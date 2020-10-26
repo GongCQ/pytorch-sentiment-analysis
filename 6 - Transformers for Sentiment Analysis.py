@@ -33,9 +33,11 @@ bert_model_name = 'bert-base-chinese'
 bert_model_folder = os.path.join('bert_model', 'pytorch_pretrained_bert', bert_model_name)
 data_set_path = os.path.join('data', 'summary')
 INCLUDE_NEUTUAL = True
-train_max_num = 2000
-test_max_num = 500
-valid_max_num = 500
+train_max_num = 120000
+test_max_num = 12000
+valid_max_num = 12000
+model_save_path = os.path.join('saved_models')
+MODEL_STAMP = dt.datetime.now().strftime('%Y%m%d%H%M%S')
 
 # The transformer has already been trained with a specific vocabulary, which means we need to train with the exact same vocabulary and also tokenize our data in the same way that the transformer did when it was initially trained.
 # 
@@ -416,7 +418,7 @@ def evaluate(model, iterator, criterion):
 
             predictions = model(batch.text).squeeze(1)
             
-            loss = criterion(predictions, batch.label)
+            loss = criterion(predictions, batch.label/(2 if INCLUDE_NEUTUAL else 1))
             
             acc = binary_accuracy(predictions, batch.label)
 
@@ -462,6 +464,8 @@ for epoch in range(N_EPOCHS):
     print(f'Epoch: {epoch+1:02} | Epoch Time: {epoch_mins}m {epoch_secs}s')
     print(f'\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc*100:.2f}%')
     print(f'\t Val. Loss: {valid_loss:.3f} |  Val. Acc: {valid_acc*100:.2f}%')
+    model_file_name = 'model%s_neu=%s_bat=%s_epo=%s_acc=%s.pkl' % (MODEL_STAMP, INCLUDE_NEUTUAL, BATCH_SIZE, epoch, round(valid_acc, 4))
+    torch.save(model, os.path.join(model_save_path,model_file_name))
 
 
 # We'll load up the parameters that gave us the best validation loss and try these on the test set - which gives us our best results so far!
