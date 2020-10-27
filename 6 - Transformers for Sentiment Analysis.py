@@ -339,7 +339,9 @@ for name, param in model.named_parameters():
 # %%
 import torch.optim as optim
 
-optimizer = optim.Adam(params=[{'params':bert.parameters(), 'lr': BERT_LR}], lr=FC_LR)
+optimizer = optim.Adam(params=[{'params': model.bert.parameters(), 'lr': BERT_LR}, 
+                               {'params': model.rnn.parameters(), 'lr': FC_LR}, 
+                               {'params': model.out.parameters(), 'lr': FC_LR}], lr=FC_LR)
 
 
 # %%
