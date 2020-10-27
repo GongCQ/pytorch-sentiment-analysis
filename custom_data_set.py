@@ -26,10 +26,11 @@ def get_examples(path, tokenizer, max_len, max_num=0, include_neutual=True):
         tag_count  =0
         for line in file:
             line = line.strip()
-            if len(line) > max_len - 4:
-                line = line[ : max_len - 4]
+            if len(line) > max_len - 2:
+                line = line[ : max_len - 2]
             if len(line) > 1:
-                example = Example(tokenizer.encode(line), tag)
+                encoded = tokenizer.encode(line)[1 : -1] # 因为tokenizer.encode会给头尾加上[CLS]和[SEP]，过会在生成数据集时又会加一次，所以这里先把头尾去掉，以免被加两次
+                example = Example(encoded, tag)
                 examples.append(example)
                 tag_count += 1
                 if tag_count >= max_num:

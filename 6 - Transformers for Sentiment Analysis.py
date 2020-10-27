@@ -32,7 +32,7 @@ BATCH_SIZE = 64 # 128
 bert_model_name = 'bert-base-chinese'
 bert_model_folder = os.path.join('bert_model', 'pytorch_pretrained_bert', bert_model_name)
 data_set_path = os.path.join('data', 'summary')
-INCLUDE_NEUTUAL = True
+INCLUDE_NEUTUAL = False
 BERT_LR = 0.00005
 FC_LR = 0.005
 train_max_num = 120000
@@ -260,7 +260,7 @@ class BERTGRUSentiment(nn.Module):
                 
         with torch.no_grad():
             embedded = self.bert(text)[0]
-                
+
         #embedded = [batch size, sent len, emb dim]
         
         _, hidden = self.rnn(embedded)
