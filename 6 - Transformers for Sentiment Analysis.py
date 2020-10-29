@@ -43,6 +43,12 @@ test_max_num = 12000
 valid_max_num = 12000
 model_save_path = os.path.join('saved_models')
 MODEL_STAMP = dt.datetime.now().strftime('%Y%m%d%H%M%S')
+print('~~ USE_PPB %s' % USE_PPB)
+print('~~ USE_MASK %s' % USE_MASK)
+print('~~ BATCH_SIZE %s' % BATCH_SIZE)
+print('~~ INCLUDE_NEUTUAL %s' % INCLUDE_NEUTUAL)
+print('~~ BERT_LR %s' % BERT_LR)
+print('~~ FC_LR %s' % FC_LR)
 
 # The transformer has already been trained with a specific vocabulary, which means we need to train with the exact same vocabulary and also tokenize our data in the same way that the transformer did when it was initially trained.
 # 
