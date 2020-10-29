@@ -18,6 +18,7 @@ import torch
 
 import random
 import numpy as np
+import pytorch_pretrained_bert as torch_bert
 
 print('%s begin run.' % dt.datetime.now())
 SEED = 1234
@@ -28,13 +29,15 @@ torch.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
 
 # %%
+USE_PPB = True # 使用pytorch_pretrained_bert而不是transformers
+USE_MASK = True #
 BATCH_SIZE = 64 # 128
 bert_model_name = 'bert-base-chinese'
 bert_model_folder = os.path.join('bert_model', 'pytorch_pretrained_bert', bert_model_name)
 data_set_path = os.path.join('data', 'summary')
-INCLUDE_NEUTUAL = False
-BERT_LR = 0.00005
-FC_LR = 0.005
+INCLUDE_NEUTUAL = True
+BERT_LR = 0.001
+FC_LR = 0.01
 train_max_num = 120000
 test_max_num = 12000
 valid_max_num = 12000
@@ -52,7 +55,10 @@ tokenizer = BertTokenizer.from_pretrained(bert_model_folder)
 # %%
 from transformers import BertTokenizer, BertModel
 
-bert = BertModel.from_pretrained(bert_model_folder)
+if USE_PPB:
+    bert = torch_bert.BertModel.from_pretrained(bert_model_folder)
+else:
+    bert = BertModel.from_pretrained(bert_model_folder)
 
 print('success to load bert tokenizer and model.')
 
@@ -259,7 +265,15 @@ class BERTGRUSentiment(nn.Module):
         #text = [batch size, sent len]
                 
         with torch.no_grad():
-            embedded = self.bert(text)[0]
+            if USE_MASK:
+                attention_mask = (text!=0).long()
+            else:
+                attention_mask = torch.ones_like(text)
+            if USE_PPB:
+                embedded = self.bert(text, attention_mask=attention_mask, output_all_encoded_layers=False)[0]
+            else:
+                embedded = self.bert(text, attention_mask=attention_mask)[0]
+            ddd = 0
 
         #embedded = [batch size, sent len, emb dim]
         
@@ -465,7 +479,8 @@ for epoch in range(N_EPOCHS):
     print(f'Epoch: {epoch+1:02} | Epoch Time: {epoch_mins}m {epoch_secs}s')
     print(f'\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc*100:.2f}%')
     print(f'\t Val. Loss: {valid_loss:.3f} |  Val. Acc: {valid_acc*100:.2f}%')
-    model_file_name = 'model%s_neu=%s_bat=%s_blr=%s_flr=%s_epo=%s_acc=%s.pkl' % (MODEL_STAMP, INCLUDE_NEUTUAL, BATCH_SIZE, BERT_LR, FC_LR, epoch, round(valid_acc, 4))
+    model_file_name = 'model%s_neu=%s_bat=%s_blr=%s_flr=%s_epo=%s_ppb=%s_msk=%s_acc=%s.pkl' % \
+                      (MODEL_STAMP, INCLUDE_NEUTUAL, BATCH_SIZE, BERT_LR, FC_LR, epoch, USE_PPB, USE_MASK, round(valid_acc, 4))
     torch.save(model, os.path.join(model_save_path,model_file_name))
 
 
