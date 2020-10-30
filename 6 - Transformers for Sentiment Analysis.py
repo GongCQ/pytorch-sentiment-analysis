@@ -31,7 +31,7 @@ torch.backends.cudnn.deterministic = True
 # %%
 USE_PPB = True # 使用pytorch_pretrained_bert而不是transformers
 USE_MASK = True #
-BATCH_SIZE = 64 # 128
+BATCH_SIZE = 200 # 128
 bert_model_name = 'bert-base-chinese'
 bert_model_folder = os.path.join('bert_model', 'pytorch_pretrained_bert', bert_model_name)
 data_set_path = os.path.join('data', 'summary')
@@ -408,6 +408,9 @@ criterion = nn.BCEWithLogitsLoss()
 # Place the model and criterion onto the GPU (if available)
 
 # %%
+device_ids = list(range(torch.cuda.device_count()))
+if len(device_ids) > 1:
+    model = nn.DataParallel(model, device_ids = [0, 1, 2])
 model = model.to(device)
 criterion = criterion.to(device)
 
