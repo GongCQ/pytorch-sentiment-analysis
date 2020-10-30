@@ -54,21 +54,58 @@ print('~~ FC_LR %s' % FC_LR)
 # 
 # Luckily, the transformers library has tokenizers for each of the transformer models provided. In this case we are using the BERT model which ignores casing (i.e. will lower case every word). We get this by loading the pre-trained `bert-base-uncased` tokenizer.
 
-# %%
-from transformers import BertTokenizer
 
-tokenizer = BertTokenizer.from_pretrained(bert_model_folder)
 # %%
-from transformers import BertTokenizer, BertModel
 
 if USE_PPB:
+    class PPBTok:
+        def __init__(self, vocab_file_path, max_len):
+            self.tok = torch_bert.tokenization.BertTokenizer(vocab_file=vocab_file_path, max_len=max_len)
+            self.max_len = max_len
+            self.vocab = self.tok.vocab
+
+        def tokenize(self, text):
+            return self.tok.tokenize(text)
+
+        def convert_tokens_to_ids(self, tokens):
+            if isinstance(tokens, str):
+                try:
+                    return self.tok.convert_tokens_to_ids([tokens])[0]
+                except Exception as e:
+                    return self.tok.convert_tokens_to_ids(['[UNK]'])[0]
+            else:
+                ids = []
+                for token in tokens:
+                    id = self.vocab[token] if token in self.vocab.keys() else self.vocab['[UNK]']
+                    ids.append(id)
+                return ids
+
+        def convert_ids_to_tokens(self, ids):
+            return self.tok.convert_ids_to_tokens(ids)
+
+        def encode(self, tokens):
+            tokens = self.tokenize(tokens)
+            return [self.vocab['[CLS]']] + self.convert_tokens_to_ids(tokens) + [self.vocab['[SEP]']]
+
+        def decode(self, ids):
+            return ''.join(self.convert_ids_to_tokens(ids))
+
+    tokenizer = PPBTok(vocab_file_path=os.path.join(bert_model_folder, 'vocab.txt'), max_len=510)
     bert = torch_bert.BertModel.from_pretrained(bert_model_folder)
+    max_input_length = tokenizer.max_len
 else:
+    from transformers import BertTokenizer, BertModel
+    tokenizer = BertTokenizer.from_pretrained(bert_model_folder)
     bert = BertModel.from_pretrained(bert_model_folder)
+    max_input_length = tokenizer.max_model_input_sizes[bert_model_name]
+
+aaa = tokenizer.encode('从前有座山')
+bbb = tokenizer.encode(['从', '前', '有', '座', '山'])
+ccc = tokenizer.decode(aaa)
+ddd = tokenizer.decode(bbb)
 
 print('success to load bert tokenizer and model.')
 
-max_input_length = tokenizer.max_model_input_sizes[bert_model_name]
 
 # The `tokenizer` has a `vocab` attribute which contains the actual vocabulary we will be using. We can check how many tokens are in it by checking its length.
 
@@ -79,7 +116,7 @@ len(tokenizer.vocab)
 # Using the tokenizer is as simple as calling `tokenizer.tokenize` on a string. This will tokenize and lower case the data in a way that is consistent with the pre-trained transformer model.
 
 # %%
-tokens = tokenizer.tokenize('Hello WORLD how ARE yoU?')
+tokens = tokenizer.tokenize('从前有座山，山上有座庙。')
 
 print(tokens)
 
@@ -97,10 +134,10 @@ print(indexes)
 # **Note**: the tokenizer does have a beginning of sequence and end of sequence attributes (`bos_token` and `eos_token`) but these are not set and should not be used for this transformer.
 
 # %%
-init_token = tokenizer.cls_token
-eos_token = tokenizer.sep_token
-pad_token = tokenizer.pad_token
-unk_token = tokenizer.unk_token
+init_token = '[CLS]' # tokenizer.cls_token
+eos_token = '[SEP]' # tokenizer.sep_token
+pad_token = '[PAD]' # tokenizer.pad_token
+unk_token = '[UNK]' # tokenizer.unk_token
 
 print(init_token, eos_token, pad_token, unk_token)
 
@@ -119,12 +156,12 @@ print(init_token_idx, eos_token_idx, pad_token_idx, unk_token_idx)
 # ...or by explicitly getting them from the tokenizer.
 
 # %%
-init_token_idx = tokenizer.cls_token_id
-eos_token_idx = tokenizer.sep_token_id
-pad_token_idx = tokenizer.pad_token_id
-unk_token_idx = tokenizer.unk_token_id
-
-print(init_token_idx, eos_token_idx, pad_token_idx, unk_token_idx)
+# init_token_idx = tokenizer.cls_token_id
+# eos_token_idx = tokenizer.sep_token_id
+# pad_token_idx = tokenizer.pad_token_id
+# unk_token_idx = tokenizer.unk_token_id
+#
+# print(init_token_idx, eos_token_idx, pad_token_idx, unk_token_idx)
 
 
 # Another thing we need to handle is that the model was trained on sequences with a defined maximum length - it does not know how to handle sequences longer than it has been trained on. We can get the maximum length of these input sizes by checking the `max_model_input_sizes` for the version of the transformer we want to use. In this case, it is 512 tokens.
