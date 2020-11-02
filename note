@@ -1,1 +1,5 @@
 with torch.no_grad()  https://www.jianshu.com/p/1cea017f5d11
+
+/pytorch/aten/src/ATen/native/cudnn/RNN.cpp:1268: UserWarning: RNN module weights are not part of single contiguous chunk of memory. This means they need to be compacted at every call, possibly greatly increasing memory usage. To compact weights again call flatten_parameters().
+
+/root/anaconda3/envs/gongcq_sentiment/lib/python3.7/site-packages/torch/serialization.py:292: UserWarning: Couldn't retrieve source code for container of type DataParallel. It won't be checked for correctness upon loading.

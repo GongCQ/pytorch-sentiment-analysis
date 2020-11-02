@@ -29,6 +29,7 @@ torch.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
 
 # %%
+GPU_NUM = 3
 USE_PPB = True # 使用pytorch_pretrained_bert而不是transformers
 USE_MASK = True #
 BATCH_SIZE = 200 # 128
@@ -408,7 +409,7 @@ criterion = nn.BCEWithLogitsLoss()
 # Place the model and criterion onto the GPU (if available)
 
 # %%
-device_ids = list(range(torch.cuda.device_count()))
+device_ids = list(range(min(GPU_NUM, torch.cuda.device_count())))
 if len(device_ids) > 1:
     model = nn.DataParallel(model, device_ids = [0, 1, 2])
 model = model.to(device)
