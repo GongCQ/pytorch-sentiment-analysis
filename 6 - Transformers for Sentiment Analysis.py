@@ -36,7 +36,7 @@ BATCH_SIZE = 200 # 128
 bert_model_name = 'bert-base-chinese'
 bert_model_folder = os.path.join('bert_model', 'pytorch_pretrained_bert', bert_model_name)
 data_set_path = os.path.join('data', 'summary')
-INCLUDE_NEUTUAL = True
+INCLUDE_NEUTRAL = True
 BERT_LR = 0.001
 FC_LR = 0.01
 train_max_num = 120000
@@ -47,7 +47,7 @@ MODEL_STAMP = dt.datetime.now().strftime('%Y%m%d%H%M%S')
 print('~~ USE_PPB %s' % USE_PPB)
 print('~~ USE_MASK %s' % USE_MASK)
 print('~~ BATCH_SIZE %s' % BATCH_SIZE)
-print('~~ INCLUDE_NEUTUAL %s' % INCLUDE_NEUTUAL)
+print('~~ INCLUDE_NEUTRAL %s' % INCLUDE_NEUTRAL)
 print('~~ BERT_LR %s' % BERT_LR)
 print('~~ FC_LR %s' % FC_LR)
 
@@ -59,38 +59,7 @@ print('~~ FC_LR %s' % FC_LR)
 # %%
 
 if USE_PPB:
-    class PPBTok:
-        def __init__(self, vocab_file_path, max_len):
-            self.tok = torch_bert.tokenization.BertTokenizer(vocab_file=vocab_file_path, max_len=max_len)
-            self.max_len = max_len
-            self.vocab = self.tok.vocab
-
-        def tokenize(self, text):
-            return self.tok.tokenize(text)
-
-        def convert_tokens_to_ids(self, tokens):
-            if isinstance(tokens, str):
-                try:
-                    return self.tok.convert_tokens_to_ids([tokens])[0]
-                except Exception as e:
-                    return self.tok.convert_tokens_to_ids(['[UNK]'])[0]
-            else:
-                ids = []
-                for token in tokens:
-                    id = self.vocab[token] if token in self.vocab.keys() else self.vocab['[UNK]']
-                    ids.append(id)
-                return ids
-
-        def convert_ids_to_tokens(self, ids):
-            return self.tok.convert_ids_to_tokens(ids)
-
-        def encode(self, tokens):
-            tokens = self.tokenize(tokens)
-            return [self.vocab['[CLS]']] + self.convert_tokens_to_ids(tokens) + [self.vocab['[SEP]']]
-
-        def decode(self, ids):
-            return ''.join(self.convert_ids_to_tokens(ids))
-
+    from custom_data_set import PPBTok
     tokenizer = PPBTok(vocab_file_path=os.path.join(bert_model_folder, 'vocab.txt'), max_len=510)
     bert = torch_bert.BertModel.from_pretrained(bert_model_folder)
     max_input_length = tokenizer.max_len
@@ -212,15 +181,15 @@ import custom_data_set
 train_data = custom_data_set.get_data_set(os.path.join(data_set_path, 'train'),
                                           tokenizer=tokenizer, max_len=max_input_length,
                                           text_field=TEXT, label_field=LABEL, max_num=train_max_num, 
-                                          include_neutual=INCLUDE_NEUTUAL)
+                                          include_neutual=INCLUDE_NEUTRAL)
 test_data = custom_data_set.get_data_set(os.path.join(data_set_path, 'test'),
                                          tokenizer=tokenizer, max_len=max_input_length,
                                          text_field=TEXT, label_field=LABEL, max_num=test_max_num,
-                                         include_neutual=INCLUDE_NEUTUAL)
+                                         include_neutual=INCLUDE_NEUTRAL)
 valid_data = custom_data_set.get_data_set(os.path.join(data_set_path, 'valid'),
                                           tokenizer=tokenizer, max_len=max_input_length,
                                           text_field=TEXT, label_field=LABEL, max_num=valid_max_num, 
-                                          include_neutual=INCLUDE_NEUTUAL)
+                                          include_neutual=INCLUDE_NEUTRAL)
 
 
 # %%
@@ -277,66 +246,8 @@ train_iterator, valid_iterator, test_iterator = data.BucketIterator.splits(
 
 # %%
 import torch.nn as nn
+from sentiment_model import BERTGRUSentiment
 
-class BERTGRUSentiment(nn.Module):
-    def __init__(self,
-                 bert,
-                 hidden_dim,
-                 output_dim,
-                 n_layers,
-                 bidirectional,
-                 dropout):
-        
-        super().__init__()
-        
-        self.bert = bert
-        
-        embedding_dim = bert.config.to_dict()['hidden_size']
-        
-        self.rnn = nn.GRU(embedding_dim,
-                          hidden_dim,
-                          num_layers = n_layers,
-                          bidirectional = bidirectional,
-                          batch_first = True,
-                          dropout = 0 if n_layers < 2 else dropout)
-        
-        self.out = nn.Linear(hidden_dim * 2 if bidirectional else hidden_dim, output_dim)
-        
-        self.dropout = nn.Dropout(dropout)
-        
-    def forward(self, text):
-        
-        #text = [batch size, sent len]
-                
-        with torch.no_grad():
-            if USE_MASK:
-                attention_mask = (text!=0).long()
-            else:
-                attention_mask = torch.ones_like(text)
-            if USE_PPB:
-                embedded = self.bert(text, attention_mask=attention_mask, output_all_encoded_layers=False)[0]
-            else:
-                embedded = self.bert(text, attention_mask=attention_mask)[0]
-            ddd = 0
-
-        #embedded = [batch size, sent len, emb dim]
-        
-        _, hidden = self.rnn(embedded)
-        
-        #hidden = [n layers * n directions, batch size, emb dim]
-        
-        if self.rnn.bidirectional:
-            hidden = self.dropout(torch.cat((hidden[-2,:,:], hidden[-1,:,:]), dim = 1))
-        else:
-            hidden = self.dropout(hidden[-1,:,:])
-                
-        #hidden = [batch size, hid dim]
-        
-        output = self.out(hidden)
-        
-        #output = [batch size, out dim]
-        
-        return output
 
 
 # Next, we create an instance of our model using standard hyperparameters.
@@ -353,7 +264,7 @@ model = BERTGRUSentiment(bert,
                          OUTPUT_DIM,
                          N_LAYERS,
                          BIDIRECTIONAL,
-                         DROPOUT)
+                         DROPOUT, use_mask=USE_MASK, use_ppb=USE_PPB)
 
 
 # We can check how many parameters the model has. Our standard models have under 5M, but this one has 112M! Luckily, 110M of these parameters are from the transformer and we will not be training those.
@@ -425,7 +336,7 @@ def binary_accuracy(preds, y):
     """
 
     #round predictions to the closest integer
-    if not INCLUDE_NEUTUAL:
+    if not INCLUDE_NEUTRAL:
         rounded_preds = torch.round(torch.sigmoid(preds))
     else:
         rounded_preds = torch.round(2 * torch.sigmoid(preds))
@@ -449,7 +360,7 @@ def train(model, iterator, optimizer, criterion):
         
         predictions = model(batch.text).squeeze(1)
         
-        loss = criterion(predictions, batch.label/(2 if INCLUDE_NEUTUAL else 1))
+        loss = criterion(predictions, batch.label/(2 if INCLUDE_NEUTRAL else 1))
         
         acc = binary_accuracy(predictions, batch.label)
         acc_value = float(acc)
@@ -480,7 +391,7 @@ def evaluate(model, iterator, criterion):
 
             predictions = model(batch.text).squeeze(1)
             
-            loss = criterion(predictions, batch.label/(2 if INCLUDE_NEUTUAL else 1))
+            loss = criterion(predictions, batch.label/(2 if INCLUDE_NEUTRAL else 1))
             
             acc = binary_accuracy(predictions, batch.label)
 
@@ -527,7 +438,7 @@ for epoch in range(N_EPOCHS):
     print(f'\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc*100:.2f}%')
     print(f'\t Val. Loss: {valid_loss:.3f} |  Val. Acc: {valid_acc*100:.2f}%')
     model_file_name = 'model%s_neu=%s_bat=%s_blr=%s_flr=%s_epo=%s_ppb=%s_msk=%s_acc=%s.pkl' % \
-                      (MODEL_STAMP, INCLUDE_NEUTUAL, BATCH_SIZE, BERT_LR, FC_LR, epoch, USE_PPB, USE_MASK, round(valid_acc, 4))
+                      (MODEL_STAMP, INCLUDE_NEUTRAL, BATCH_SIZE, BERT_LR, FC_LR, epoch, USE_PPB, USE_MASK, round(valid_acc, 4))
     torch.save(model, os.path.join(model_save_path,model_file_name))
 
 

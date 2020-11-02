@@ -3,6 +3,7 @@ import sys
 import random 
 from torchtext.data.example import Example as E
 from torchtext.data.dataset import Dataset
+import pytorch_pretrained_bert as torch_bert
 
 class Example:
     def __init__(self, text, label):
@@ -45,3 +46,36 @@ def get_data_set(path, tokenizer, text_field, label_field, max_len, max_num=0, i
     examples = get_examples(path, tokenizer, max_len=max_len, max_num=max_num, include_neutual=include_neutual)
     data_set = Dataset(examples=examples, fields=fields)
     return data_set
+
+
+class PPBTok:
+    def __init__(self, vocab_file_path, max_len):
+        self.tok = torch_bert.tokenization.BertTokenizer(vocab_file=vocab_file_path, max_len=max_len)
+        self.max_len = max_len
+        self.vocab = self.tok.vocab
+
+    def tokenize(self, text):
+        return self.tok.tokenize(text)
+
+    def convert_tokens_to_ids(self, tokens):
+        if isinstance(tokens, str):
+            try:
+                return self.tok.convert_tokens_to_ids([tokens])[0]
+            except Exception as e:
+                return self.tok.convert_tokens_to_ids(['[UNK]'])[0]
+        else:
+            ids = []
+            for token in tokens:
+                id = self.vocab[token] if token in self.vocab.keys() else self.vocab['[UNK]']
+                ids.append(id)
+            return ids
+
+    def convert_ids_to_tokens(self, ids):
+        return self.tok.convert_ids_to_tokens(ids)
+
+    def encode(self, tokens):
+        tokens = self.tokenize(tokens)
+        return [self.vocab['[CLS]']] + self.convert_tokens_to_ids(tokens) + [self.vocab['[SEP]']]
+
+    def decode(self, ids):
+        return ''.join(self.convert_ids_to_tokens(ids))
