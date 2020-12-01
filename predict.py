@@ -4,6 +4,9 @@ import torch
 from custom_data_set import PPBTok
 from sentiment_model import BERTGRUSentiment
 import numpy as np
+import sys
+import codecs
+sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
 
 
 bert_model_name = 'bert-base-chinese'
@@ -171,7 +174,7 @@ def predict(text):
     prob = model(input)
     prob = 1 / (1 + np.exp(-prob[0][0].item()))
     label = round(prob) if not INCLUDE_NEUTRAL else round(2 * prob)
-    return label
+    return 1 - int(label)  # 最终结果0为负面，1为正面
 
 
 def predict_batch(text_list, label_list):
@@ -219,15 +222,73 @@ import flask
 from flasgger import Swagger, swag_from
 from flask import Flask, request
 from gevent import pywsgi
+
+DEFAULT_CONFIG = {
+    "headers": [
+    ],
+    "specs": [
+        {
+            "endpoint": 'apispec_1',
+            "route": '/apispec_1.json',
+            "rule_filter": lambda rule: True,  # all in
+            "model_filter": lambda tag: True,  # all in
+        }
+    ],
+    "static_url_path": "/flasgger_static",
+    # "static_folder": "static",  # must be set by user
+    "swagger_ui": True,
+    "specs_route": "/apidocs/"
+}
+
 app = Flask(__name__)
 Swagger(app)
 @app.route('/sentiment2', methods=['POST'])
 def server():
-    request_body = json.loads(request.stream.read().decode('utf-8'))
-    text = request_body['text']
-    label = predict(text)
-    response = {'label': label}
-    code = 200
+    """
+        receive a text, and return sentiment, 0 for negative, 1 for positive.
+        ---
+        tags:
+          - sa
+        produces:
+          - application/json
+        parameters:
+          - name: text
+            in: body
+            type: string
+            description: content for sentiment
+            schema:
+              id: parameter_text
+              properties:
+                text:
+                  type: string
+                  description: content for sentiment
+                  default: null
+        responses:
+          500:
+            description: unknown error
+          200:
+            description: sentiment
+            schema:
+              id: sentiment
+              properties:
+                sentiment:
+                  type: integer
+                  description: sentiment, 0 for negative, 1 for positive.
+                  default: null
+                message:
+                  type: string
+                  description: message for execution
+                  default: null
+        """
+    try:
+        request_body = json.loads(request.stream.read().decode('utf-8'))
+        text = request_body['text']
+        label = predict(text)
+        response = {'sentiment': label, 'message': 'OK'}
+        code = 200
+    except Exception as e:
+        response = {'sentiment': None, 'message': str(e)}
+        code = 500
     return json.dumps(response, ensure_ascii=False), code, [('Content-Type', 'application/json')]
 
 s = pywsgi.WSGIServer(('0.0.0.0', 7890), app)
